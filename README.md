@@ -33,3 +33,15 @@ None, really ! You are allowed to use whatever you feel is best to achieve your 
 No real time limit. It's entirely up to you.
 However, we highly suggest that you allocate yourself a set amount of time (ideally an hour) and do as much as you can during this time, then submit your results -
 even if you haven't finished, it's fine, we know time is precious.
+
+
+## Management Commands
+* Get Event Summary: Following management command can be used in order to get summary for given event id. Summary includes:
+  * Total Orders
+  * Total Booked Quantity: Total no. of tickets booked.
+  * Total Cancelled Quantity: Total no. of cancelled tickets.
+  * Cancellation Rate
+  * Date with Max Cancellations
+```commandline
+python manage.py get_event_summary <event_id>
+```

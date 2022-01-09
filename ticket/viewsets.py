@@ -1,7 +1,9 @@
 from rest_framework import mixins, viewsets, exceptions
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
-from .models import Event, TicketType, Order
-from .serializers import EventSerializer, TicketTypeSerializer, OrderSerializer
+from .models import Event, Order
+from .serializers import EventSerializer, OrderSerializer
 
 
 class EventViewSet(viewsets.ReadOnlyModelViewSet):
@@ -11,7 +13,7 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
 
 class OrderViewSet(mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSet):
     serializer_class = OrderSerializer
-    queryset = Order.objects.all()
+    queryset = Order.objects.prefetch_related("cancellations")
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -23,3 +25,10 @@ class OrderViewSet(mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSet):
         if not order.fulfilled:
             order.delete()
             raise exceptions.ValidationError("Couldn't book tickets")
+
+    @action(methods=["POST"], detail=True)
+    def cancel(self, request, **kwargs):
+        instance = self.get_object()
+        instance.cancel(quantity=self.request.data["quantity"])
+        instance.refresh_from_db()
+        return Response(self.serializer_class(instance).data)
