@@ -1,9 +1,10 @@
 from operator import itemgetter
 
 from django_dynamic_fixture import G
+from rest_framework import status
 
 from test import APITestCase, AnyOrder, Any
-from ticket.models import Order, Event, TicketType
+from ticket.models import Order, Event, TicketType, CancelledOrder
 
 
 class EndpointsTest(APITestCase):
@@ -36,8 +37,8 @@ class EndpointsTest(APITestCase):
             'name': 'Summer Party',
             'description': 'We have a pool !',
             'ticket_types': AnyOrder([
-                {'id': self.ticket_type1.pk, 'name': 'Early Bird'},
-                {'id': self.ticket_type2.pk, 'name': 'Night Owl'},
+                {'id': self.ticket_type1.pk, 'name': 'Early Bird', 'available_tickets': 1},
+                {'id': self.ticket_type2.pk, 'name': 'Night Owl', 'available_tickets': 2},
             ], key=itemgetter('id'))
         })
 
@@ -54,8 +55,8 @@ class EndpointsTest(APITestCase):
                 'name': 'Summer Party',
                 'description': 'We have a pool !',
                 'ticket_types': AnyOrder([
-                    {'id': self.ticket_type1.pk, 'name': 'Early Bird'},
-                    {'id': self.ticket_type2.pk, 'name': 'Night Owl'},
+                    {'id': self.ticket_type1.pk, 'name': 'Early Bird', 'available_tickets': 1},
+                    {'id': self.ticket_type2.pk, 'name': 'Night Owl', 'available_tickets': 2},
                 ], key=itemgetter('id'))
             },
             {
@@ -84,7 +85,8 @@ class EndpointsTest(APITestCase):
         self.assertEqual(successful_resp.data, {
             'id': Any(int),
             'ticket_type': self.ticket_type2.pk,
-            'quantity': 2
+            'quantity': 2,
+            'cancelled_quantity': 0
         })
 
     def test_order_detail(self):
@@ -115,3 +117,20 @@ class EndpointsTest(APITestCase):
                               [order_a.pk, order_b.pk])
         self.assertEqual(no_order_resp.status_code, 200)
         self.assertEqual(no_order_resp.data, [])
+
+    def test_order_cancel(self):
+        user = self.authorize()
+        order_a = G(Order, user=user, quantity=5, event=self.event)
+        self.authorize(user=user)
+
+        resp = self.client.post(f'/api/orders/{order_a.id}/cancel', data={"quantity": 1})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        exp_resp = {
+            "id": Any(int),
+            "ticket_type": order_a.ticket_type.id,
+            "quantity": 5,
+            "cancelled_quantity": 1
+        }
+        self.assertEqual(resp.data, exp_resp)
+        self.assertEqual(CancelledOrder.objects.filter(order=order_a).count(), 1)
+        self.assertEqual(CancelledOrder.objects.get(order=order_a).quantity, 1)

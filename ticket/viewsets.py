@@ -29,6 +29,6 @@ class OrderViewSet(mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSet):
     @action(methods=["POST"], detail=True)
     def cancel(self, request, **kwargs):
         instance = self.get_object()
-        instance.cancel(quantity=self.request.data["quantity"])
+        instance.cancel(quantity=int(self.request.data["quantity"]), user=self.request.user)
         instance.refresh_from_db()
         return Response(self.serializer_class(instance).data)

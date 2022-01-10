@@ -99,11 +99,9 @@ class Order(models.Model):
         self.fulfilled = True
         self.save(update_fields=['fulfilled'])
 
-    def cancel(self, quantity):
+    def cancel(self, quantity, user):
         if self.created_on < (timezone.now() - timedelta(minutes=30)):
             raise ValidationError('Booking older than 30 minutes cannot be cancelled')
-        if (self.quantity - self.cancelled_quantity) == 0:
-            raise ValidationError('No tickets available in the order to cancel')
         if quantity <= 0:
             raise ValidationError('Cancel quantity must be 1 or more')
         if quantity > self.quantity:
@@ -111,7 +109,7 @@ class Order(models.Model):
         if quantity > (self.quantity - self.cancelled_quantity):
             raise ValidationError('Cancel quantity cannot be greater than remaining quantity')
         with transaction.atomic():
-            CancelledOrder.objects.create(order=self, quantity=quantity)
+            CancelledOrder.objects.create(order=self, quantity=quantity, user=user)
             tickets = self.ticket_type.tickets.filter(order=self)[:quantity]
             self.ticket_type.tickets.filter(id__in=tickets).update(order=None)
 
